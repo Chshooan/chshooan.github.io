@@ -1,2 +1,3 @@
 # chshooan.github.io
-| la Ĉakontas Project GithubPage
+*la Ĉakontas Project GithubPage*
+
