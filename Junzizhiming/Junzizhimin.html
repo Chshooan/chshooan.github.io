@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+cCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -390,5 +390,291 @@
         <button id="reset-btn">重置</button>
         <button id="copy-btn">复制结果</button>
     </div>
+    <div class="settings">
+        <h2>设置</h2>
+        <div class="setting-item">
+            <label for="mode-select">生成模式:</label>
+            <select id="mode-select">
+                <option value="no-repeat">不重复选择</option>
+                <option value="allow-repeat">允许重复</option>
+            </select>
+        </div>
+        <div class="setting-item">
+            <label for="history-limit">历史记录数量:</label>
+            <select id="history-limit">
+                <option value="5">5条</option>
+                <option value="10" selected>10条</option>
+                <option value="20">20条</option>
+                <option value="50">50条</option>
+            </select>
+        </div>
+    </div>
     
-    <div class
+    <div class="history">
+        <h2>生成历史 <span id="history-count">(0)</span></h2>
+        <div class="history-container" id="history-container">
+            <!-- 历史记录将在这里显示 -->
+            <div class="history-item">暂无生成记录</div>
+        </div>
+        <div class="history-controls">
+            <button id="clear-history">清空历史</button>
+            <button id="export-history">导出历史</button>
+        </div>
+    </div>
+    
+    <script>
+        // 定义源字库（已隐藏）
+        const sourceCharacters = ['孙', '子', '隽', '牛', '战', '士'];
+        
+        // 状态变量
+        let generationCount = 0;
+        let history = [];
+        let uniqueCombinations = new Set();
+        let generationMode = 'no-repeat'; // 默认不重复选择
+        let historyLimit = 10;
+        
+        // 获取DOM元素
+        const resultCharsElement = document.getElementById('result-chars');
+        const resultInfoElement = document.getElementById('result-info');
+        const counterElement = document.getElementById('counter');
+        const uniqueCountElement = document.getElementById('unique-count');
+        const lastGenerateElement = document.getElementById('last-generate');
+        const historyContainer = document.getElementById('history-container');
+        const historyCountElement = document.getElementById('history-count');
+        
+        const generateBtn = document.getElementById('generate-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const clearHistoryBtn = document.getElementById('clear-history');
+        const exportHistoryBtn = document.getElementById('export-history');
+        const modeSelect = document.getElementById('mode-select');
+        const historyLimitSelect = document.getElementById('history-limit');
+        
+        // 生成随机组合
+        function generateRandomCombination() {
+            let selectedChars = [];
+            
+            if (generationMode === 'no-repeat') {
+                // 不重复模式：从源字库中随机选择三个不重复的字
+                const availableChars = [...sourceCharacters];
+                
+                for (let i = 0; i < 3; i++) {
+                    const randomIndex = Math.floor(Math.random() * availableChars.length);
+                    selectedChars.push(availableChars[randomIndex]);
+                    availableChars.splice(randomIndex, 1); // 移除已选的字
+                }
+            } else {
+                // 允许重复模式：每个字都可以被重复选择
+                for (let i = 0; i < 3; i++) {
+                    const randomIndex = Math.floor(Math.random() * sourceCharacters.length);
+                    selectedChars.push(sourceCharacters[randomIndex]);
+                }
+            }
+            
+            return selectedChars;
+        }
+        
+        // 显示组合
+        function displayCombination(combination) {
+            // 清空现有显示
+            resultCharsElement.innerHTML = '';
+            
+            // 显示新组合
+            combination.forEach(char => {
+                const charElement = document.createElement('div');
+                charElement.className = 'result-char';
+                charElement.textContent = char;
+                resultCharsElement.appendChild(charElement);
+            });
+            
+            // 更新信息
+            resultInfoElement.textContent = `组合: ${combination.join('')}`;
+        }
+        
+        // 更新统计信息
+        function updateStats() {
+            counterElement.textContent = generationCount;
+            uniqueCountElement.textContent = uniqueCombinations.size;
+            
+            if (history.length > 0) {
+                const lastTime = history[0].timestamp;
+                lastGenerateElement.textContent = lastTime.split(' ')[1]; // 只显示时间部分
+            } else {
+                lastGenerateElement.textContent = '-';
+            }
+        }
+        
+        // 更新历史记录
+        function updateHistory(combination) {
+            const combinationStr = combination.join('');
+            
+            // 添加到唯一组合集合
+            uniqueCombinations.add(combinationStr);
+            
+            // 添加到历史记录
+            history.unshift({
+                id: Date.now(),
+                combination: combinationStr,
+                timestamp: new Date().toLocaleTimeString()
+            });
+            
+            // 限制历史记录数量
+            if (history.length > historyLimit) {
+                history = history.slice(0, historyLimit);
+            }
+            
+            // 更新统计信息
+            generationCount++;
+            updateStats();
+            
+            // 更新历史显示
+            renderHistory();
+        }
+        
+        // 渲染历史记录
+        function renderHistory() {
+            historyContainer.innerHTML = '';
+            
+            if (history.length === 0) {
+                const emptyItem = document.createElement('div');
+                emptyItem.className = 'history-item';
+                emptyItem.textContent = '暂无生成记录';
+                historyContainer.appendChild(emptyItem);
+            } else {
+                history.forEach(item => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    historyItem.innerHTML = `
+                        <span>${item.combination}</span>
+                        <span class="history-time">${item.timestamp}</span>
+                    `;
+                    historyContainer.appendChild(historyItem);
+                });
+            }
+            
+            // 更新历史计数
+            historyCountElement.textContent = `(${history.length})`;
+        }
+        
+        // 复制结果到剪贴板
+        function copyResultToClipboard() {
+            const resultText = resultInfoElement.textContent.replace('组合: ', '');
+            
+            if (resultText && resultText !== '点击下方"生成"按钮开始') {
+                navigator.clipboard.writeText(resultText).then(() => {
+                    // 临时改变按钮文本表示复制成功
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = '已复制!';
+                    
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                    }, 1500);
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请手动复制结果');
+                });
+            } else {
+                alert('请先生成组合再复制');
+            }
+        }
+        
+        // 导出历史记录
+        function exportHistory() {
+            if (history.length === 0) {
+                alert('没有历史记录可导出');
+                return;
+            }
+            
+            const historyText = `随机三字组合生成历史\n生成时间: ${new Date().toLocaleString()}\n生成次数: ${generationCount}\n不重复组合数: ${uniqueCombinations.size}\n\n历史记录:\n${history.map(item => 
+                `${item.combination} (${item.timestamp})`
+            ).join('\n')}`;
+            
+            const blob = new Blob([historyText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `三字组合历史_${new Date().toISOString().slice(0, 10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // 事件监听器
+        generateBtn.addEventListener('click', () => {
+            const combination = generateRandomCombination();
+            displayCombination(combination);
+            updateHistory(combination);
+        });
+        
+        resetBtn.addEventListener('click', () => {
+            resultCharsElement.innerHTML = `
+                <div class="result-char">?</div>
+                <div class="result-char">?</div>
+                <div class="result-char">?</div>
+            `;
+            resultInfoElement.textContent = '点击下方"生成"按钮开始';
+        });
+        
+        copyBtn.addEventListener('click', copyResultToClipboard);
+        
+        clearHistoryBtn.addEventListener('click', () => {
+            if (history.length > 0 && confirm('确定要清空历史记录吗？')) {
+                history = [];
+                uniqueCombinations.clear();
+                generationCount = 0;
+                updateStats();
+                renderHistory();
+            }
+        });
+        
+        exportHistoryBtn.addEventListener('click', exportHistory);
+        
+        modeSelect.addEventListener('change', (e) => {
+            generationMode = e.target.value;
+        });
+        
+        historyLimitSelect.addEventListener('change', (e) => {
+            historyLimit = parseInt(e.target.value);
+            
+            // 如果当前历史记录超过新限制，则截断
+            if (history.length > historyLimit) {
+                history = history.slice(0, historyLimit);
+                renderHistory();
+            }
+        });
+        
+        // 初始化
+        updateStats();
+        renderHistory();
+        
+        // 添加快捷键支持
+        document.addEventListener('keydown', (e) => {
+            // 空格键生成
+            if (e.code === 'Space' && !e.target.matches('button, select, input, textarea')) {
+                e.preventDefault();
+                generateBtn.click();
+            }
+            
+            // Ctrl+C 复制结果 (当焦点不在输入元素上时)
+            if (e.ctrlKey && e.code === 'KeyC' && !e.target.matches('input, textarea, select')) {
+                e.preventDefault();
+                copyResultToClipboard();
+            }
+            
+            // Ctrl+G 生成新组合
+            if (e.ctrlKey && e.code === 'KeyG' && !e.target.matches('input, textarea, select')) {
+                e.preventDefault();
+                generateBtn.click();
+            }
+        });
+        
+        // 添加一些示例说明
+        console.log('使用说明:');
+        console.log('1. 点击"生成随机组合"按钮生成新的三字组合');
+        console.log('2. 按空格键或Ctrl+G可以快速生成新组合');
+        console.log('3. 按Ctrl+C可以复制当前结果');
+        console.log('4. 可以在设置中更改生成模式和历史记录数量');
+    </script>
+</body>
+</html>
